@@ -670,81 +670,91 @@ export function Metricas() {
 
       {/* Dialog orientação */}
       <Dialog open={!!selectedOrientacao} onOpenChange={() => setSelectedOrientacao(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Detalhes da Orientação</DialogTitle>
-            <DialogDescription>Informações sobre a melhoria sugerida para o agente</DialogDescription>
-          </DialogHeader>
-          {selectedOrientacao && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-muted-foreground">Categoria</Label>
-                <div className="mt-1">
-                  <span className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
-                    {selectedOrientacao.category}
-                  </span>
+        <DialogContent
+          withGradientHeader
+          className="mx-auto flex max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-lg flex-col p-0 sm:max-h-[85vh]"
+        >
+          <div className="shrink-0 rounded-t-xl bg-gradient-to-r from-primary to-secondary px-4 pb-4 pt-6 sm:px-6">
+            <DialogHeader>
+              <DialogTitle className="text-primary-foreground">Detalhes da Orientação</DialogTitle>
+              <DialogDescription className="text-primary-foreground/80">
+                Informações sobre a melhoria sugerida para o agente
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+            {selectedOrientacao && (
+              <>
+                <div>
+                  <Label className="text-muted-foreground">Categoria</Label>
+                  <div className="mt-1">
+                    <span className="rounded-full bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary">
+                      {selectedOrientacao.category}
+                    </span>
+                  </div>
                 </div>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Descrição do Problema</Label>
-                <p className="mt-1 text-base">{selectedOrientacao.problem_description}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Motivo e Solução</Label>
-                <p className="mt-1 text-base">{selectedOrientacao.reason}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Registrado em</Label>
-                <p className="mt-1 text-sm">
-                  {selectedOrientacao.created_at
-                    ? format(parseISO(selectedOrientacao.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                    : "—"}
-                </p>
-              </div>
-              <div className="border-t pt-2">
-                <Label className="text-muted-foreground">Status de Implementação</Label>
-                <div className="mt-2">
-                  {selectedOrientacao.is_resolved ? (
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm font-medium text-green-700">
-                        <CheckCircle2 className="h-4 w-4" />
-                        Implementado
-                      </span>
+                <div>
+                  <Label className="text-muted-foreground">Descrição do Problema</Label>
+                  <p className="mt-1 text-base">{selectedOrientacao.problem_description}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Motivo e Solução</Label>
+                  <p className="mt-1 text-base">{selectedOrientacao.reason}</p>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Registrado em</Label>
+                  <p className="mt-1 text-sm">
+                    {selectedOrientacao.created_at
+                      ? format(parseISO(selectedOrientacao.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                      : "—"}
+                  </p>
+                </div>
+                <div className="border-t pt-2">
+                  <Label className="text-muted-foreground">Status de Implementação</Label>
+                  <div className="mt-2">
+                    {selectedOrientacao.is_resolved ? (
+                      <div className="flex items-center gap-2">
+                        <span className="flex items-center gap-2 rounded-full bg-green-100 px-3 py-1.5 text-sm font-medium text-green-700">
+                          <CheckCircle2 className="h-4 w-4" />
+                          Implementado
+                        </span>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => {
+                            updateOrientacao.mutate({ id: selectedOrientacao.id, is_resolved: false })
+                            setSelectedOrientacao({ ...selectedOrientacao, is_resolved: false })
+                          }}
+                          disabled={updateOrientacao.isPending}
+                        >
+                          Desfazer
+                        </Button>
+                      </div>
+                    ) : (
                       <Button
-                        variant="outline"
                         size="sm"
                         onClick={() => {
-                          updateOrientacao.mutate({ id: selectedOrientacao.id, is_resolved: false })
-                          setSelectedOrientacao({ ...selectedOrientacao, is_resolved: false })
+                          updateOrientacao.mutate({ id: selectedOrientacao.id, is_resolved: true })
+                          setSelectedOrientacao({ ...selectedOrientacao, is_resolved: true })
                         }}
                         disabled={updateOrientacao.isPending}
+                        className="gap-2 bg-green-600 hover:bg-green-700"
                       >
-                        Desfazer
+                        <CheckCircle2 className="h-4 w-4" />
+                        Marcar como Implementado
                       </Button>
-                    </div>
-                  ) : (
-                    <Button
-                      size="sm"
-                      onClick={() => {
-                        updateOrientacao.mutate({ id: selectedOrientacao.id, is_resolved: true })
-                        setSelectedOrientacao({ ...selectedOrientacao, is_resolved: true })
-                      }}
-                      disabled={updateOrientacao.isPending}
-                      className="gap-2 bg-green-600 hover:bg-green-700"
-                    >
-                      <CheckCircle2 className="h-4 w-4" />
-                      Marcar como Implementado
-                    </Button>
-                  )}
+                    )}
+                  </div>
                 </div>
-              </div>
-            </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
+              </>
+            )}
+          </div>
+          <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border px-4 py-4 sm:flex-row sm:px-6">
             <Button variant="destructive" onClick={() => setConfirmDeleteOrientacao(true)} className="gap-2">
               <Trash2 className="h-4 w-4" />
               Deletar
             </Button>
+            <div className="hidden sm:block sm:flex-1" />
             <Button variant="outline" onClick={() => setSelectedOrientacao(null)}>
               Fechar
             </Button>

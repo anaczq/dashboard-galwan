@@ -9,7 +9,6 @@ import {
   CalendarIcon,
   FolderOpen,
   Loader2,
-  Images,
 } from "lucide-react"
 import { format } from "date-fns"
 import { toast } from "sonner"
@@ -139,10 +138,7 @@ export function Projetos() {
   const [projectToDelete, setProjectToDelete] = useState<string | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
   const [statusFilter, setStatusFilter] = useState<string>("all")
-  const [viewImagesProjectId, setViewImagesProjectId] = useState<string | null>(null)
   const [isSaving, setIsSaving] = useState(false)
-  const [isAddingImages, setIsAddingImages] = useState(false)
-  const [deletingImageId, setDeletingImageId] = useState<string | null>(null)
 
   const [projectName, setProjectName] = useState("")
   const [launchDate, setLaunchDate] = useState<Date>()
@@ -156,6 +152,7 @@ export function Projetos() {
   const [images, setImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<string[]>([])
+  const [removedImageUrls, setRemovedImageUrls] = useState<string[]>([])
   const [brokenImageUrls, setBrokenImageUrls] = useState<Set<string>>(new Set())
   const [status, setStatus] = useState<Project["status"]>("Ativo")
 
@@ -170,7 +167,7 @@ export function Projetos() {
 
   const visibleExistingCount = existingImages.filter((url) => !brokenImageUrls.has(url)).length
 
-  const projectIdForImages = editMode && currentProjectId ? currentProjectId : viewImagesProjectId || ""
+  const projectIdForImages = editMode && currentProjectId ? currentProjectId : ""
   const {
     images: projectImages,
     addImage,
@@ -223,6 +220,7 @@ export function Projetos() {
     setImagePreviews([])
     setImages([])
     setExistingImages([])
+    setRemovedImageUrls([])
     setBrokenImageUrls(new Set())
     setStatus("Ativo")
     setEditMode(false)
@@ -251,6 +249,7 @@ export function Projetos() {
     setLinkSite(project.project_website || "")
     setStatus(project.status)
     setExistingImages(project.project_images_urls || [])
+    setRemovedImageUrls([])
     setBrokenImageUrls(new Set())
     setEditMode(true)
     setCurrentProjectId(project.id)
@@ -312,6 +311,26 @@ export function Projetos() {
           ...projectData,
           project_images_urls: existingImages.length > 0 ? existingImages : null,
         })
+
+        for (const url of removedImageUrls) {
+          if (existingImages.includes(url)) continue
+          const path = getStoragePathFromUrl(url, "imagens-projetos")
+          if (path) {
+            try {
+              await deleteFile("imagens-projetos", path)
+            } catch {
+              // best-effort
+            }
+          }
+          const row = projectImages.find((img) => img.image_url === url)
+          if (row) {
+            try {
+              await deleteProjectImage.mutateAsync(row.id)
+            } catch {
+              // best-effort
+            }
+          }
+        }
 
         generateProjectEmbedding(currentProjectId).catch(() => {
           toast.info("Projeto salvo, mas a indexação para busca não pôde ser gerada. Ela será processada automaticamente depois.")
@@ -438,80 +457,6 @@ export function Projetos() {
     setImages((prev) => prev.filter((_, i) => i !== index))
   }
 
-  const handleGalleryAdd = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const rawFiles = Array.from(e.target.files || [])
-    if (!viewImagesProjectId || rawFiles.length === 0) return
-    e.target.value = ""
-
-    const files: File[] = []
-    for (const file of rawFiles) {
-      try {
-        validateImageFile(file)
-        files.push(file)
-      } catch (err) {
-        toast.error(err instanceof Error ? err.message : "Arquivo inválido")
-      }
-    }
-    if (files.length === 0) return
-
-    setIsAddingImages(true)
-    const si = projectImages.length
-    const successUrls: string[] = []
-    let hadError = false
-
-    for (let i = 0; i < files.length; i++) {
-      let uploadedUrl: string | null = null
-      try {
-        uploadedUrl = await uploadProjectImage(files[i], viewImagesProjectId, si + i)
-        await addImage.mutateAsync({
-          projectId: viewImagesProjectId,
-          imageUrl: uploadedUrl,
-          orderIndex: si + i,
-        })
-        successUrls.push(uploadedUrl)
-      } catch {
-        hadError = true
-        if (uploadedUrl) {
-          const path = getStoragePathFromUrl(uploadedUrl, "imagens-projetos")
-          if (path) deleteFile("imagens-projetos", path).catch(() => {})
-        }
-      }
-    }
-
-    try {
-      if (successUrls.length > 0) {
-        const allUrls = [...projectImages.map((img) => img.image_url), ...successUrls]
-        await updateProject.mutateAsync({ id: viewImagesProjectId, project_images_urls: allUrls })
-      }
-      if (hadError) toast.error("Algumas imagens não puderam ser adicionadas.")
-      else toast.success("Imagens adicionadas com sucesso!")
-    } catch {
-      // erro já tratado no hook
-    } finally {
-      setIsAddingImages(false)
-    }
-  }
-
-  const handleGalleryDelete = async (image: { id: string; image_url: string }) => {
-    if (!viewImagesProjectId) return
-    setDeletingImageId(image.id)
-    try {
-      const storagePath = getStoragePathFromUrl(image.image_url, "imagens-projetos")
-      if (storagePath) await deleteFile("imagens-projetos", storagePath)
-      await deleteProjectImage.mutateAsync(image.id)
-
-      const remainingUrls = projectImages.filter((img) => img.id !== image.id).map((img) => img.image_url)
-      await updateProject.mutateAsync({
-        id: viewImagesProjectId,
-        project_images_urls: remainingUrls.length > 0 ? remainingUrls : null,
-      })
-    } catch {
-      // erro já tratado no hook
-    } finally {
-      setDeletingImageId(null)
-    }
-  }
-
   return (
     <>
       <div className="space-y-6">
@@ -599,10 +544,6 @@ export function Projetos() {
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => handleOpenEditProject(projeto)}>
                                   Editar
-                                </DropdownMenuItem>
-                                <DropdownMenuItem onClick={() => setViewImagesProjectId(projeto.id)}>
-                                  <Images className="mr-2 h-4 w-4" />
-                                  Imagens
                                 </DropdownMenuItem>
                                 <DropdownMenuItem
                                   className="text-destructive"
@@ -908,9 +849,12 @@ export function Projetos() {
                           key={`existing-${url}-${index}`}
                           src={url}
                           alt={`Imagem ${index + 1}`}
-                          onRemove={() =>
+                          onRemove={() => {
                             setExistingImages((prev) => prev.filter((_, i) => i !== index))
-                          }
+                            setRemovedImageUrls((prev) =>
+                              prev.includes(url) ? prev : [...prev, url],
+                            )
+                          }}
                           onBroken={() => markImageBroken(url)}
                           disabled={isSaving}
                         />
@@ -982,67 +926,6 @@ export function Projetos() {
         onConfirm={confirmDelete}
         variant="destructive"
       />
-
-      {viewImagesProjectId && (
-        <Dialog open={!!viewImagesProjectId} onOpenChange={() => setViewImagesProjectId(null)}>
-          <DialogContent withGradientHeader className="mx-auto flex max-h-[calc(100vh-48px)] w-[calc(100%-32px)] max-w-4xl flex-col overflow-hidden p-0 sm:max-h-[85vh]">
-            <div className="shrink-0 rounded-t-xl bg-gradient-to-r from-primary to-secondary px-4 pb-4 pt-6 sm:px-6">
-              <DialogHeader>
-                <DialogTitle className="text-primary-foreground">Imagens do Projeto</DialogTitle>
-              </DialogHeader>
-            </div>
-            <div className="flex-1 space-y-4 overflow-y-auto p-4 sm:p-6">
-              {projectImages.length > 0 ? (
-                <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
-                  {projectImages.map((img) => (
-                    <ProjectImageTile
-                      key={img.id}
-                      src={img.image_url}
-                      alt="Imagem do projeto"
-                      onRemove={() => handleGalleryDelete(img)}
-                      removing={deletingImageId === img.id}
-                      disabled={deletingImageId === img.id || isAddingImages}
-                      removeClassName="right-1 top-1"
-                    />
-                  ))}
-                </div>
-              ) : (
-                <p className="py-8 text-center text-muted-foreground">Nenhuma imagem disponível</p>
-              )}
-
-              <div>
-                <label htmlFor="gallery-upload" className="cursor-pointer">
-                  <div
-                    className={cn(
-                      "flex w-fit items-center gap-2 rounded-lg border-2 border-dashed border-border px-4 py-2 text-sm text-muted-foreground transition-colors hover:border-primary hover:text-primary",
-                      isAddingImages && "pointer-events-none opacity-50",
-                    )}
-                  >
-                    {isAddingImages ? (
-                      <>
-                        <Loader2 className="h-4 w-4 animate-spin" /> Enviando...
-                      </>
-                    ) : (
-                      <>
-                        <Upload className="h-4 w-4" /> Adicionar imagens
-                      </>
-                    )}
-                  </div>
-                  <input
-                    id="gallery-upload"
-                    type="file"
-                    accept="image/*"
-                    multiple
-                    className="hidden"
-                    disabled={isAddingImages}
-                    onChange={handleGalleryAdd}
-                  />
-                </label>
-              </div>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
     </>
   )
 }
