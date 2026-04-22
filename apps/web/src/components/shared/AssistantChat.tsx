@@ -209,16 +209,24 @@ export function AssistantChat({ userEmail }: AssistantChatProps) {
                 ) : (
                   <div className="space-y-4">
                     {messages.map((msg, i) => (
-                      <div key={i} className={cn("flex", msg.role === "user" ? "justify-end" : "justify-start")}>
+                      <div
+                        key={i}
+                        className={cn(
+                          "flex min-w-0 px-2",
+                          msg.role === "user" ? "justify-end" : "justify-start",
+                        )}
+                      >
                         <div
                           className={cn(
-                            "max-w-[85%] rounded-2xl px-4 py-2 text-sm",
+                            "min-w-0 max-w-[85%] rounded-2xl px-4 py-2 text-sm",
                             msg.role === "user"
                               ? "rounded-br-md bg-primary text-primary-foreground"
                               : "rounded-bl-md bg-muted",
                           )}
                         >
-                          <p className="whitespace-pre-wrap">{msg.content || "..."}</p>
+                          <p className="whitespace-pre-wrap break-words [overflow-wrap:anywhere]">
+                            {msg.content || "..."}
+                          </p>
                         </div>
                       </div>
                     ))}
