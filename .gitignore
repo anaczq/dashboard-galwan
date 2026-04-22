@@ -1,6 +1,14 @@
 node_modules
 .pnpm-store
+dist
+coverage
+
 .env
-./dist
+.env.*
+!.env.example
+
 .cursor/
+.DS_Store
 tasks/
+
+*.log
