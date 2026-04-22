@@ -1,0 +1,65 @@
+import { useEffect, useState } from "react"
+import type { ReactNode } from "react"
+import type { Session, User } from "@supabase/supabase-js"
+
+import { AuthContext } from "@/lib/auth-context"
+import * as authService from "@/services/auth"
+
+export function AuthProvider({ children }: { children: ReactNode }) {
+  const [session, setSession] = useState<Session | null>(null)
+  const [user, setUser] = useState<User | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+
+  useEffect(() => {
+    authService.getSession().then(({ session: s, error }) => {
+      if (error) {
+        console.error("[AuthProvider] Falha ao recuperar sessão:", error.message)
+      }
+      setSession(s)
+      setUser(s?.user ?? null)
+      setIsLoading(false)
+    })
+
+    const subscription = authService.onAuthStateChange((s) => {
+      setSession(s)
+      setUser(s?.user ?? null)
+    })
+
+    return () => subscription.unsubscribe()
+  }, [])
+
+  const signIn = async (email: string, password: string) => {
+    const { error } = await authService.signInWithPassword({ email, password })
+
+    if (error) {
+      const msg = error.message.toLowerCase()
+      if (msg.includes("invalid login") || msg.includes("invalid_credentials")) {
+        return { error: "E-mail ou senha incorretos." }
+      }
+      if (msg.includes("email not confirmed")) {
+        return { error: "E-mail ainda não confirmado. Verifique sua caixa de entrada." }
+      }
+      if (msg.includes("rate limit") || msg.includes("too many requests")) {
+        return { error: "Muitas tentativas. Aguarde alguns minutos e tente novamente." }
+      }
+      return { error: "Não foi possível fazer login. Tente novamente." }
+    }
+
+    return { error: null }
+  }
+
+  const signOut = async () => {
+    const { error } = await authService.signOut()
+    if (error) {
+      console.error("[AuthProvider] Falha ao fazer logout:", error.message)
+    }
+    setSession(null)
+    setUser(null)
+  }
+
+  return (
+    <AuthContext.Provider value={{ user, session, isLoading, signIn, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  )
+}
