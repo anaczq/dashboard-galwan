@@ -5,6 +5,8 @@ import type { Session, User } from "@supabase/supabase-js"
 import { AuthContext } from "@/lib/auth-context"
 import * as authService from "@/services/auth"
 
+const MAX_SESSION_MS = 3 * 60 * 60 * 1000
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null)
   const [user, setUser] = useState<User | null>(null)
@@ -27,6 +29,43 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => subscription.unsubscribe()
   }, [])
+
+  useEffect(() => {
+    if (!session) return
+
+    const loginAt = session.user.last_sign_in_at
+      ? new Date(session.user.last_sign_in_at).getTime()
+      : Date.now()
+
+    const forceLogout = () => {
+      void authService.signOut()
+      setSession(null)
+      setUser(null)
+    }
+
+    const checkExpired = () => {
+      if (Date.now() - loginAt >= MAX_SESSION_MS) {
+        forceLogout()
+        return true
+      }
+      return false
+    }
+
+    if (checkExpired()) return
+
+    const remaining = MAX_SESSION_MS - (Date.now() - loginAt)
+    const timeout = window.setTimeout(forceLogout, remaining + 100)
+
+    const onVisibility = () => {
+      if (!document.hidden) checkExpired()
+    }
+    document.addEventListener("visibilitychange", onVisibility)
+
+    return () => {
+      window.clearTimeout(timeout)
+      document.removeEventListener("visibilitychange", onVisibility)
+    }
+  }, [session])
 
   const signIn = async (email: string, password: string) => {
     const { error } = await authService.signInWithPassword({ email, password })

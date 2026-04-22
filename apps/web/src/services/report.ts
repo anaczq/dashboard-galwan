@@ -264,22 +264,38 @@ export const generateMetricsReport = async (input: ReportInput): Promise<void> =
     doc.text("Alertas de alucinação", pageWidth - 15, 11, { align: "right" })
     yPos = 25
 
+    const colTitleX = 20
+    const colDateX = 60
+    const colDescX = 90
+    const colSevX = 155
+    const titleWidth = colDateX - colTitleX - 2
+    const descWidth = colSevX - colDescX - 2
+    const lineHeight = 3.5
+
     doc.setFillColor(...COLORS.lightBg)
     doc.rect(15, yPos, pageWidth - 30, 10, "F")
     doc.setTextColor(...COLORS.darkBlue)
     doc.setFontSize(8)
     doc.setFont("helvetica", "bold")
-    doc.text("Título", 20, yPos + 7)
-    doc.text("Data", 60, yPos + 7)
-    doc.text("Descrição", 90, yPos + 7)
-    doc.text("Gravidade", 155, yPos + 7)
+    doc.text("Título", colTitleX, yPos + 7)
+    doc.text("Data", colDateX, yPos + 7)
+    doc.text("Descrição", colDescX, yPos + 7)
+    doc.text("Gravidade", colSevX, yPos + 7)
     yPos += 12
 
     alertsInPeriod.forEach((alert, index) => {
-      yPos = checkNewPage(12, yPos)
+      doc.setFontSize(7)
+      doc.setFont("helvetica", "normal")
+      const titleLines = doc.splitTextToSize(alert.title || "Alerta", titleWidth) as string[]
+      const descLines = doc.splitTextToSize(alert.description || "—", descWidth) as string[]
+      const numLines = Math.max(titleLines.length, descLines.length, 1)
+      const rowHeight = Math.max(10, numLines * lineHeight + 5)
+
+      yPos = checkNewPage(rowHeight + 2, yPos)
+
       if (index % 2 === 0) {
         doc.setFillColor(...COLORS.zebraRow)
-        doc.rect(15, yPos - 2, pageWidth - 30, 10, "F")
+        doc.rect(15, yPos - 2, pageWidth - 30, rowHeight, "F")
       }
 
       const gravColor =
@@ -290,20 +306,18 @@ export const generateMetricsReport = async (input: ReportInput): Promise<void> =
             : COLORS.accentBlue
 
       doc.setFillColor(...gravColor)
-      doc.rect(15, yPos - 2, 2, 10, "F")
+      doc.rect(15, yPos - 2, 2, rowHeight, "F")
 
       doc.setTextColor(...COLORS.darkBlue)
       doc.setFontSize(7)
       doc.setFont("helvetica", "normal")
-      doc.text((alert.title || "Alerta").substring(0, 15), 20, yPos + 4)
+      doc.text(titleLines, colTitleX, yPos + 4)
       doc.text(
         alert.created_at ? format(parseISO(alert.created_at), "dd/MM/yyyy", { locale: ptBR }) : "-",
-        60,
+        colDateX,
         yPos + 4,
       )
-
-      const desc = (alert.description || "").substring(0, 40)
-      doc.text(desc + (desc.length === 40 ? "..." : ""), 90, yPos + 4)
+      doc.text(descLines, colDescX, yPos + 4)
 
       doc.setFillColor(...gravColor)
       doc.roundedRect(152, yPos, 20, 6, 1, 1, "F")
@@ -311,8 +325,7 @@ export const generateMetricsReport = async (input: ReportInput): Promise<void> =
       doc.setFontSize(6)
       doc.text(alert.severity ?? "—", 162, yPos + 4, { align: "center" })
 
-
-      yPos += 10
+      yPos += rowHeight
     })
   }
 
@@ -341,39 +354,63 @@ export const generateMetricsReport = async (input: ReportInput): Promise<void> =
     doc.text("Orientações e Melhorias", pageWidth - 15, 11, { align: "right" })
     yPos = 25
 
+    const textX = 22
+    const textWidth = pageWidth - 44
+    const headerHeight = 12
+    const descLineHeight = 4
+    const motivoLineHeight = 3.6
+    const gapBetween = 3
+    const bottomPadding = 5
+
     orientacoes.forEach((orientacao) => {
-      yPos = checkNewPage(28, yPos)
       const isImplementado = orientacao.is_resolved
       const borderColor = isImplementado ? COLORS.green : COLORS.orange
 
-      doc.setFillColor(...COLORS.lightBg)
-      doc.roundedRect(15, yPos, pageWidth - 30, 24, 2, 2, "F")
-      doc.setFillColor(...borderColor)
-      doc.rect(15, yPos, 3, 24, "F")
+      doc.setFontSize(8)
+      doc.setFont("helvetica", "bold")
+      const descLines = doc.splitTextToSize(orientacao.problem_description || "—", textWidth) as string[]
 
-      doc.setFillColor(...COLORS.secondaryBlue)
-      doc.roundedRect(22, yPos + 3, 30, 6, 1, 1, "F")
-      doc.setTextColor(...COLORS.white)
+      doc.setFont("helvetica", "normal")
+      doc.setFontSize(7)
+      const motivoLines = doc.splitTextToSize(orientacao.reason || "—", textWidth) as string[]
+
+      const descBlockHeight = descLines.length * descLineHeight
+      const motivoBlockHeight = motivoLines.length * motivoLineHeight
+      const boxHeight =
+        headerHeight + descBlockHeight + gapBetween + motivoBlockHeight + bottomPadding
+
+      yPos = checkNewPage(boxHeight + 3, yPos)
+
+      doc.setFillColor(...COLORS.lightBg)
+      doc.roundedRect(15, yPos, pageWidth - 30, boxHeight, 2, 2, "F")
+      doc.setFillColor(...borderColor)
+      doc.rect(15, yPos, 3, boxHeight, "F")
+
+      const category = orientacao.category || ""
       doc.setFontSize(6)
-      doc.text((orientacao.category || "").substring(0, 12), 37, yPos + 7, { align: "center" })
+      const categoryWidth = Math.max(30, doc.getTextWidth(category) + 6)
+      doc.setFillColor(...COLORS.secondaryBlue)
+      doc.roundedRect(22, yPos + 3, categoryWidth, 6, 1, 1, "F")
+      doc.setTextColor(...COLORS.white)
+      doc.text(category, 22 + categoryWidth / 2, yPos + 7, { align: "center" })
 
       doc.setFillColor(...borderColor)
       doc.roundedRect(pageWidth - 45, yPos + 3, 28, 6, 1, 1, "F")
       doc.text(isImplementado ? "Implementado" : "Pendente", pageWidth - 31, yPos + 7, { align: "center" })
 
+      const descY = yPos + headerHeight + descLineHeight - 1
       doc.setTextColor(...COLORS.darkBlue)
       doc.setFontSize(8)
       doc.setFont("helvetica", "bold")
-      const descOri = (orientacao.problem_description || "").substring(0, 90)
-      doc.text(descOri + (descOri.length === 90 ? "..." : ""), 22, yPos + 15, { maxWidth: pageWidth - 50 })
+      doc.text(descLines, textX, descY)
 
+      const motivoY = descY + descBlockHeight - descLineHeight + gapBetween + motivoLineHeight
       doc.setFont("helvetica", "normal")
       doc.setFontSize(7)
       doc.setTextColor(...COLORS.grayBlue)
-      const motivo = (orientacao.reason || "").substring(0, 100)
-      doc.text(motivo + (motivo.length === 100 ? "..." : ""), 22, yPos + 21, { maxWidth: pageWidth - 50 })
+      doc.text(motivoLines, textX, motivoY)
 
-      yPos += 27
+      yPos += boxHeight + 3
     })
   }
 

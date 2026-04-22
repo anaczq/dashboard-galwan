@@ -178,17 +178,21 @@ export function Metricas() {
   const chartData = useMemo(() => {
     const alertsByDate = filteredAlertsByDate.reduce(
       (acc, alert) => {
-        const date = alert.created_at
-          ? format(parseISO(alert.created_at), "dd/MM/yyyy", { locale: ptBR })
-          : "Sem data"
-        acc[date] = (acc[date] || 0) + 1
+        if (!alert.created_at) return acc
+        const iso = parseISO(alert.created_at)
+        const key = format(iso, "yyyy-MM-dd")
+        if (!acc[key]) {
+          acc[key] = { count: 0, label: format(iso, "dd/MM/yyyy", { locale: ptBR }) }
+        }
+        acc[key].count += 1
         return acc
       },
-      {} as Record<string, number>,
+      {} as Record<string, { count: number; label: string }>,
     )
     return Object.entries(alertsByDate)
-      .slice(0, 7)
-      .map(([date, count]) => ({ day: date, alerts: count }))
+      .sort(([a], [b]) => a.localeCompare(b))
+      .slice(-7)
+      .map(([, { count, label }]) => ({ day: label, alerts: count }))
   }, [filteredAlertsByDate])
 
   const barData = useMemo(() => {
