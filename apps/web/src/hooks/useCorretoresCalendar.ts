@@ -19,7 +19,9 @@ export function useCorretoresCalendar(corretores: Corretor[]) {
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDayView, setSelectedDayView] = useState(new Date())
   const [selectedPeriod, setSelectedPeriod] = useState<"month" | "quinzena">("month")
-  const [currentQuinzena, setCurrentQuinzena] = useState<1 | 2>(1)
+  const [currentQuinzena, setCurrentQuinzena] = useState<1 | 2>(() =>
+    new Date().getDate() <= 15 ? 1 : 2,
+  )
 
   const monthStart = startOfMonth(currentMonth)
   const monthEnd = endOfMonth(currentMonth)
