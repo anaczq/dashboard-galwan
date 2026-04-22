@@ -586,66 +586,75 @@ export function Metricas() {
 
       {/* Dialog editar alerta */}
       <Dialog open={!!editingAlert} onOpenChange={(open) => { if (!open) handleCloseEditAlert() }}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Alerta de alucinação</DialogTitle>
-            <DialogDescription>Apenas o status pode ser alterado</DialogDescription>
-          </DialogHeader>
-          {editingAlert && (
-            <div className="space-y-4">
-              <div>
-                <Label className="text-muted-foreground">Título</Label>
-                <p className="mt-1 text-base font-semibold">{editingAlert.title?.trim() || "—"}</p>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Registrado em</Label>
-                <p className="mt-1 text-sm">
-                  {editingAlert.created_at
-                    ? format(parseISO(editingAlert.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
-                    : "—"}
-                </p>
-              </div>
-              <div>
-                <Label htmlFor="alert-status">Status</Label>
-                <Select
-                  value={editedStatus ?? undefined}
-                  onValueChange={(value) => setEditedStatus(value as HallucinationAlertStatus)}
-                  disabled={updateHallucinationAlert.isPending}
-                >
-                  <SelectTrigger id="alert-status" className="mt-1">
-                    <SelectValue placeholder="Selecione o status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STATUS_OPTIONS.map((status) => (
-                      <SelectItem key={status} value={status}>
-                        {status}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label className="text-muted-foreground">Gravidade</Label>
-                <p className="mt-1 text-sm">{editingAlert.severity ?? "—"}</p>
-              </div>
-              {editingAlert.number_incorrect_messages != null ? (
+        <DialogContent
+          withGradientHeader
+          className="mx-auto flex max-h-[calc(100vh-48px)] w-[calc(100%-32px)] max-w-lg flex-col p-0 sm:max-h-[85vh]"
+        >
+          <div className="shrink-0 rounded-t-xl bg-gradient-to-r from-primary to-secondary px-4 pb-4 pt-6 sm:px-6">
+            <DialogHeader>
+              <DialogTitle className="text-primary-foreground">Alerta de alucinação</DialogTitle>
+              <DialogDescription className="text-primary-foreground/80">
+                Apenas o status pode ser alterado
+              </DialogDescription>
+            </DialogHeader>
+          </div>
+          <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4 sm:px-6">
+            {editingAlert && (
+              <>
                 <div>
-                  <Label className="text-muted-foreground">Mensagens incorretas</Label>
-                  <p className="mt-1 text-sm">{editingAlert.number_incorrect_messages}</p>
+                  <Label className="text-muted-foreground">Título</Label>
+                  <p className="mt-1 text-base font-semibold">{editingAlert.title?.trim() || "—"}</p>
                 </div>
-              ) : null}
-              <div>
-                <Label className="text-muted-foreground">Descrição</Label>
-                <p className="mt-1 text-sm">{editingAlert.description || "Sem descrição"}</p>
-              </div>
-            </div>
-          )}
-          <DialogFooter className="gap-2 sm:gap-0">
+                <div>
+                  <Label className="text-muted-foreground">Registrado em</Label>
+                  <p className="mt-1 text-sm">
+                    {editingAlert.created_at
+                      ? format(parseISO(editingAlert.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })
+                      : "—"}
+                  </p>
+                </div>
+                <div>
+                  <Label htmlFor="alert-status">Status</Label>
+                  <Select
+                    value={editedStatus ?? undefined}
+                    onValueChange={(value) => setEditedStatus(value as HallucinationAlertStatus)}
+                    disabled={updateHallucinationAlert.isPending}
+                  >
+                    <SelectTrigger id="alert-status" className="mt-1">
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {STATUS_OPTIONS.map((status) => (
+                        <SelectItem key={status} value={status}>
+                          {status}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label className="text-muted-foreground">Gravidade</Label>
+                  <p className="mt-1 text-sm">{editingAlert.severity ?? "—"}</p>
+                </div>
+                {editingAlert.number_incorrect_messages != null ? (
+                  <div>
+                    <Label className="text-muted-foreground">Mensagens incorretas</Label>
+                    <p className="mt-1 text-sm">{editingAlert.number_incorrect_messages}</p>
+                  </div>
+                ) : null}
+                <div>
+                  <Label className="text-muted-foreground">Descrição</Label>
+                  <p className="mt-1 text-sm">{editingAlert.description || "Sem descrição"}</p>
+                </div>
+              </>
+            )}
+          </div>
+          <DialogFooter className="shrink-0 flex-col gap-2 border-t border-border px-4 py-4 sm:flex-row sm:px-6">
             <Button variant="destructive" onClick={() => setConfirmDeleteAlert(true)} className="gap-2">
               <Trash2 className="h-4 w-4" />
               Deletar
             </Button>
-            <div className="flex-1" />
+            <div className="hidden sm:block sm:flex-1" />
             <Button variant="outline" onClick={handleCloseEditAlert} disabled={updateHallucinationAlert.isPending}>
               Cancelar
             </Button>

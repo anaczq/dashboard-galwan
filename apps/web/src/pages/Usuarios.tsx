@@ -102,14 +102,24 @@ export function Usuarios() {
       <PermissionsDialog
         user={editing}
         onClose={() => setEditing(null)}
-        onSave={(permittedAreas) => {
+        onSave={async (role, permittedAreas) => {
           if (!editing) return
-          updatePermissions.mutate(
-            { userId: editing.id, permittedAreas },
-            { onSuccess: () => setEditing(null) },
-          )
+          try {
+            if (role !== editing.role) {
+              await updateRole.mutateAsync({ userId: editing.id, role })
+            }
+            if (role === "colaborador") {
+              await updatePermissions.mutateAsync({
+                userId: editing.id,
+                permittedAreas,
+              })
+            }
+            setEditing(null)
+          } catch {
+            /* error toast surfaced by mutation */
+          }
         }}
-        isPending={updatePermissions.isPending}
+        isPending={updatePermissions.isPending || updateRole.isPending}
       />
     </div>
   )
@@ -296,7 +306,6 @@ const UserRowItem = ({
           variant="outline"
           size="sm"
           onClick={onEditPermissions}
-          disabled={isAdmin}
         >
           Permissões
         </Button>
@@ -308,7 +317,7 @@ const UserRowItem = ({
 interface PermissionsDialogProps {
   user: UserProfile | null
   onClose: () => void
-  onSave: (permittedAreas: AreaSlug[]) => void
+  onSave: (role: UserRole, permittedAreas: AreaSlug[]) => void
   isPending: boolean
 }
 
@@ -329,7 +338,7 @@ const PermissionsDialog = ({ user, onClose, onSave, isPending }: PermissionsDial
 interface PermissionsDialogContentProps {
   user: UserProfile
   onClose: () => void
-  onSave: (permittedAreas: AreaSlug[]) => void
+  onSave: (role: UserRole, permittedAreas: AreaSlug[]) => void
   isPending: boolean
 }
 
@@ -339,6 +348,7 @@ const PermissionsDialogContent = ({
   onSave,
   isPending,
 }: PermissionsDialogContentProps) => {
+  const [role, setRole] = useState<UserRole>(user.role)
   const [selected, setSelected] = useState<Set<AreaSlug>>(() => new Set(user.permittedAreas))
 
   const toggle = (slug: AreaSlug) => {
@@ -353,7 +363,7 @@ const PermissionsDialogContent = ({
   return (
     <DialogContent
       withGradientHeader
-      className="mx-auto flex max-h-[calc(100vh-32px)] w-[calc(100%-32px)] max-w-md flex-col overflow-hidden p-0 sm:max-h-[85vh]"
+      className="mx-auto flex max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-md flex-col overflow-hidden p-0 sm:max-h-[85vh]"
     >
       <div className="shrink-0 rounded-t-xl bg-gradient-to-r from-primary to-secondary px-6 pb-4 pt-6">
         <DialogHeader>
@@ -363,33 +373,61 @@ const PermissionsDialogContent = ({
           </DialogDescription>
         </DialogHeader>
       </div>
-      <div className="flex-1 space-y-3 overflow-y-auto px-6 py-4">
-        {AREA_SLUGS.map((slug) => (
-          <Label
-            key={slug}
-            htmlFor={`area-${slug}`}
-            className="flex cursor-pointer items-center justify-between rounded-md border border-border p-3"
+      <div className="flex-1 space-y-4 overflow-y-auto px-6 py-4">
+        <div className="space-y-2">
+          <Label htmlFor="edit-user-role">Perfil</Label>
+          <Select
+            value={role}
+            onValueChange={(value) => setRole(value as UserRole)}
+            disabled={isPending}
           >
-            <div>
-              <p className="text-sm font-medium">{AREAS[slug].label}</p>
-              <p className="text-xs text-muted-foreground">
-                {AREAS[slug].description}
-              </p>
+            <SelectTrigger id="edit-user-role">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="admin">Administrador</SelectItem>
+              <SelectItem value="colaborador">Colaborador</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        {role === "colaborador" ? (
+          <div className="space-y-2">
+            <Label>Áreas permitidas</Label>
+            <div className="space-y-3">
+              {AREA_SLUGS.map((slug) => (
+                <Label
+                  key={slug}
+                  htmlFor={`area-${slug}`}
+                  className="flex cursor-pointer items-center justify-between rounded-md border border-border p-3"
+                >
+                  <div>
+                    <p className="text-sm font-medium">{AREAS[slug].label}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {AREAS[slug].description}
+                    </p>
+                  </div>
+                  <Checkbox
+                    id={`area-${slug}`}
+                    checked={selected.has(slug)}
+                    onCheckedChange={() => toggle(slug)}
+                  />
+                </Label>
+              ))}
             </div>
-            <Checkbox
-              id={`area-${slug}`}
-              checked={selected.has(slug)}
-              onCheckedChange={() => toggle(slug)}
-            />
-          </Label>
-        ))}
+          </div>
+        ) : (
+          <p className="rounded-md bg-muted/50 p-3 text-xs text-muted-foreground">
+            Administradores têm acesso irrestrito a todas as áreas.
+          </p>
+        )}
       </div>
-      <DialogFooter className="shrink-0 border-t border-border px-6 py-4">
+      <DialogFooter className="shrink-0 gap-2 border-t border-border px-4 pb-6 pt-4 sm:px-6 sm:pb-4">
         <Button variant="outline" onClick={onClose} disabled={isPending}>
           Cancelar
         </Button>
         <Button
-          onClick={() => onSave(Array.from(selected))}
+          onClick={() => onSave(role, Array.from(selected))}
           disabled={isPending}
         >
           {isPending ? "Salvando..." : "Salvar"}
@@ -461,7 +499,7 @@ const CreateUserDialogContent = ({ onClose, onSave, isPending }: CreateUserDialo
   return (
     <DialogContent
       withGradientHeader
-      className="mx-auto flex max-h-[calc(100vh-32px)] w-[calc(100%-32px)] max-w-md flex-col overflow-hidden p-0 sm:max-h-[85vh]"
+      className="mx-auto flex max-h-[calc(100dvh-32px)] w-[calc(100%-32px)] max-w-md flex-col overflow-hidden p-0 sm:max-h-[85vh]"
     >
       <div className="shrink-0 rounded-t-xl bg-gradient-to-r from-primary to-secondary px-6 pb-4 pt-6">
         <DialogHeader>

@@ -138,12 +138,6 @@ export function Corretores() {
             getCorretoresForDate={getCorretoresForDate}
             expandedBrokers={brokerList.expandedBrokers}
             toggleBrokerExpanded={brokerList.toggleBrokerExpanded}
-            editingBroker={brokerList.editingBroker}
-            brokerSchedules={brokerList.brokerSchedules}
-            startEditingBroker={brokerList.startEditingBroker}
-            saveBrokerSchedules={brokerList.saveBrokerSchedules}
-            cancelEditingBroker={brokerList.cancelEditingBroker}
-            updateBrokerSchedule={brokerList.updateBrokerSchedule}
             onVerTodos={() => dialogs.setAllBrokersDialogOpen(true)}
             onCadastrarNovo={() => dialogs.setNewBrokerDialogOpen(true)}
           />

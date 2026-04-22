@@ -1,9 +1,8 @@
-import { ChevronDown, ChevronUp, Clock, Edit2, Save, X, Users, UserPlus } from "lucide-react"
+import { ChevronDown, ChevronUp, Clock, Users, UserPlus } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent } from "@/components/ui/card"
 import type { Corretor } from "@/hooks/useCorretoresPage"
-import type { Periodo } from "@/lib/corretores"
 import { formatIsoDateToBr } from "@/lib/utils"
 
 interface CorretoresBrokerListCardProps {
@@ -13,12 +12,6 @@ interface CorretoresBrokerListCardProps {
   getCorretoresForDate: (date: Date) => Corretor[]
   expandedBrokers: Record<string, boolean>
   toggleBrokerExpanded: (id: string) => void
-  editingBroker: string | null
-  brokerSchedules: Record<string, Record<string, { periodos: Periodo[]; observacoes: string }>>
-  startEditingBroker: (id: string) => void
-  saveBrokerSchedules: (id: string) => void
-  cancelEditingBroker: () => void
-  updateBrokerSchedule: (brokerId: string, dateStr: string, field: "periodos" | "observacoes", value: Periodo[] | string) => void
   onVerTodos: () => void
   onCadastrarNovo: () => void
 }
@@ -27,10 +20,6 @@ export function CorretoresBrokerListCard({
   corretoresQuinzena,
   expandedBrokers,
   toggleBrokerExpanded,
-  editingBroker,
-  startEditingBroker,
-  saveBrokerSchedules,
-  cancelEditingBroker,
   onVerTodos,
   onCadastrarNovo,
 }: CorretoresBrokerListCardProps) {
@@ -69,7 +58,6 @@ export function CorretoresBrokerListCard({
         ) : (
           corretoresQuinzena.map((corretor) => {
             const isExpanded = expandedBrokers[corretor.id]
-            const isEditing = editingBroker === corretor.id
 
             return (
               <div
@@ -77,50 +65,17 @@ export function CorretoresBrokerListCard({
                 className="rounded-xl border p-3 shadow-sm transition-all hover:shadow-md"
                 style={{ borderColor: `${corretor.calendar_color}40` }}
               >
-                <div className="flex items-center justify-between">
-                  <button
-                    type="button"
-                    className="flex items-center gap-2 text-left"
-                    onClick={() => toggleBrokerExpanded(corretor.id)}
-                  >
-                    <div className="h-3 w-3 rounded-full" style={{ backgroundColor: corretor.calendar_color }} />
-                    <span className="text-sm font-semibold">
-                      {corretor.first_name} {corretor.last_name}
-                    </span>
-                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                  </button>
-                  <div className="flex gap-1">
-                    {isEditing ? (
-                      <>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-green-600 hover:bg-green-600/10"
-                          onClick={() => saveBrokerSchedules(corretor.id)}
-                        >
-                          <Save className="h-3 w-3" />
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-7 w-7 text-destructive hover:bg-destructive/10"
-                          onClick={cancelEditingBroker}
-                        >
-                          <X className="h-3 w-3" />
-                        </Button>
-                      </>
-                    ) : (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-7 w-7 text-primary hover:bg-primary/10"
-                        onClick={() => startEditingBroker(corretor.id)}
-                      >
-                        <Edit2 className="h-3 w-3" />
-                      </Button>
-                    )}
-                  </div>
-                </div>
+                <button
+                  type="button"
+                  className="flex w-full items-center gap-2 text-left"
+                  onClick={() => toggleBrokerExpanded(corretor.id)}
+                >
+                  <div className="h-3 w-3 rounded-full" style={{ backgroundColor: corretor.calendar_color }} />
+                  <span className="text-sm font-semibold">
+                    {corretor.first_name} {corretor.last_name}
+                  </span>
+                  {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                </button>
 
                 {isExpanded && (
                   <div className="mt-3 space-y-2 border-t pt-3">

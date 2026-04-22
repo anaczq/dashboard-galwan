@@ -78,6 +78,57 @@ const STATUS_COLORS: Record<string, string> = {
   "Disponível em breve": "bg-amber-100 text-amber-700",
 }
 
+function ProjectImageTile({
+  src,
+  alt,
+  onRemove,
+  onBroken,
+  removing,
+  disabled,
+  removeClassName,
+}: {
+  src: string
+  alt: string
+  onRemove?: () => void
+  onBroken?: () => void
+  removing?: boolean
+  disabled?: boolean
+  removeClassName?: string
+}) {
+  const [broken, setBroken] = useState(false)
+  if (broken) return null
+  return (
+    <div className="group relative">
+      <div className="aspect-square overflow-hidden rounded-lg border bg-muted">
+        <img
+          src={src}
+          alt={alt}
+          className="h-full w-full object-cover"
+          onError={() => {
+            setBroken(true)
+            onBroken?.()
+          }}
+        />
+      </div>
+      {onRemove && (
+        <Button
+          type="button"
+          variant="destructive"
+          size="icon"
+          className={cn(
+            "absolute h-6 w-6 rounded-full opacity-0 transition-opacity group-hover:opacity-100",
+            removeClassName ?? "-right-2 -top-2",
+          )}
+          onClick={onRemove}
+          disabled={disabled}
+        >
+          {removing ? <Loader2 className="h-3 w-3 animate-spin" /> : <X className="h-3 w-3" />}
+        </Button>
+      )}
+    </div>
+  )
+}
+
 export function Projetos() {
   const { projects, isLoading, isError, error, refetch, createProject, updateProject, deleteProject } = useProjects()
   const [searchTerm, setSearchTerm] = useState("")
@@ -105,7 +156,19 @@ export function Projetos() {
   const [images, setImages] = useState<File[]>([])
   const [imagePreviews, setImagePreviews] = useState<string[]>([])
   const [existingImages, setExistingImages] = useState<string[]>([])
+  const [brokenImageUrls, setBrokenImageUrls] = useState<Set<string>>(new Set())
   const [status, setStatus] = useState<Project["status"]>("Ativo")
+
+  const markImageBroken = (url: string) => {
+    setBrokenImageUrls((prev) => {
+      if (prev.has(url)) return prev
+      const next = new Set(prev)
+      next.add(url)
+      return next
+    })
+  }
+
+  const visibleExistingCount = existingImages.filter((url) => !brokenImageUrls.has(url)).length
 
   const projectIdForImages = editMode && currentProjectId ? currentProjectId : viewImagesProjectId || ""
   const {
@@ -160,6 +223,7 @@ export function Projetos() {
     setImagePreviews([])
     setImages([])
     setExistingImages([])
+    setBrokenImageUrls(new Set())
     setStatus("Ativo")
     setEditMode(false)
     setCurrentProjectId(null)
@@ -187,6 +251,7 @@ export function Projetos() {
     setLinkSite(project.project_website || "")
     setStatus(project.status)
     setExistingImages(project.project_images_urls || [])
+    setBrokenImageUrls(new Set())
     setEditMode(true)
     setCurrentProjectId(project.id)
     setDialogOpen(true)
@@ -839,21 +904,16 @@ export function Projetos() {
                     <p className="text-xs font-medium text-muted-foreground">Imagens salvas:</p>
                     <div className="grid grid-cols-5 gap-2">
                       {existingImages.map((url, index) => (
-                        <div key={`existing-${index}`} className="group relative">
-                          <div className="aspect-square overflow-hidden rounded-lg border bg-muted">
-                            <img src={url} alt={`Imagem ${index + 1}`} className="h-full w-full object-cover" />
-                          </div>
-                          <Button
-                            type="button"
-                            variant="destructive"
-                            size="icon"
-                            className="absolute -right-2 -top-2 h-6 w-6 rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-                            onClick={() => setExistingImages((prev) => prev.filter((_, i) => i !== index))}
-                            disabled={isSaving}
-                          >
-                            <X className="h-3 w-3" />
-                          </Button>
-                        </div>
+                        <ProjectImageTile
+                          key={`existing-${url}-${index}`}
+                          src={url}
+                          alt={`Imagem ${index + 1}`}
+                          onRemove={() =>
+                            setExistingImages((prev) => prev.filter((_, i) => i !== index))
+                          }
+                          onBroken={() => markImageBroken(url)}
+                          disabled={isSaving}
+                        />
                       ))}
                     </div>
                   </div>
@@ -884,10 +944,10 @@ export function Projetos() {
                   </div>
                 )}
 
-                {existingImages.length + images.length > 0 && (
+                {visibleExistingCount + images.length > 0 && (
                   <p className="text-xs text-muted-foreground">
-                    {existingImages.length + images.length}{" "}
-                    {existingImages.length + images.length === 1 ? "imagem" : "imagens"} no total
+                    {visibleExistingCount + images.length}{" "}
+                    {visibleExistingCount + images.length === 1 ? "imagem" : "imagens"} no total
                   </p>
                 )}
               </div>
@@ -935,30 +995,15 @@ export function Projetos() {
               {projectImages.length > 0 ? (
                 <div className="grid grid-cols-2 gap-4 md:grid-cols-3 lg:grid-cols-4">
                   {projectImages.map((img) => (
-                    <div
+                    <ProjectImageTile
                       key={img.id}
-                      className="group relative aspect-square overflow-hidden rounded-lg border border-border"
-                    >
-                      <img
-                        src={img.image_url}
-                        alt="Imagem do projeto"
-                        className="h-full w-full object-cover"
-                      />
-                      <Button
-                        type="button"
-                        variant="destructive"
-                        size="icon"
-                        className="absolute right-1 top-1 h-6 w-6 rounded-full opacity-0 transition-opacity group-hover:opacity-100"
-                        disabled={deletingImageId === img.id || isAddingImages}
-                        onClick={() => handleGalleryDelete(img)}
-                      >
-                        {deletingImageId === img.id ? (
-                          <Loader2 className="h-3 w-3 animate-spin" />
-                        ) : (
-                          <X className="h-3 w-3" />
-                        )}
-                      </Button>
-                    </div>
+                      src={img.image_url}
+                      alt="Imagem do projeto"
+                      onRemove={() => handleGalleryDelete(img)}
+                      removing={deletingImageId === img.id}
+                      disabled={deletingImageId === img.id || isAddingImages}
+                      removeClassName="right-1 top-1"
+                    />
                   ))}
                 </div>
               ) : (
