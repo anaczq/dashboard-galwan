@@ -11,6 +11,8 @@ export interface ChatHistoryMessage {
 interface RawMessage {
   type?: string
   content?: unknown
+  tool_calls?: unknown
+  additional_kwargs?: { tool_calls?: unknown } | null
 }
 
 const ROLE_BY_TYPE: Record<string, ChatRole> = {
@@ -37,14 +39,24 @@ export async function fetchChatHistory(
       : row.message
     if (!raw || typeof raw !== "object") return []
 
+    if (raw.type === "tool") return []
+
     const role = ROLE_BY_TYPE[raw.type ?? ""]
     if (!role) return []
+
+    if (hasToolCalls(raw)) return []
 
     const content = typeof raw.content === "string" ? raw.content : ""
     if (!content) return []
 
     return [{ id: row.id, role, content }]
   })
+}
+
+const hasToolCalls = (raw: RawMessage): boolean => {
+  if (Array.isArray(raw.tool_calls) && raw.tool_calls.length > 0) return true
+  const nested = raw.additional_kwargs?.tool_calls
+  return Array.isArray(nested) && nested.length > 0
 }
 
 const safeParse = (value: string): RawMessage | null => {
